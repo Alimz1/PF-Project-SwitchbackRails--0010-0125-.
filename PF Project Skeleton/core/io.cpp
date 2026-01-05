@@ -13,37 +13,6 @@ using namespace std;
 // IO.CPP - Level I/O and logging
 // ============================================================================
 
-// Helper: trim whitespace from both ends of a string.
-static string trim(const string& value) {
-    size_t start = 0;
-    while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\r')) {
-        start++;
-    }
-    size_t end = value.size();
-    while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\r')) {
-        end--;
-    }
-    return value.substr(start, end - start);
-}
-
-// Helper: record spawn/destination positions while reading the map.
-static void recordSpecialTile(int row, int col, char tile) {
-    if (tile == 'S' && g_spawnCount < MAX_SPAWNS) {
-        g_spawnRows[g_spawnCount] = row;
-        g_spawnCols[g_spawnCount] = col;
-        g_spawnCount++;
-    } else if (tile == 'D' && g_destCount < MAX_DESTS) {
-        g_destRows[g_destCount] = row;
-        g_destCols[g_destCount] = col;
-        g_destCount++;
-    } else if (tile >= 'A' && tile <= 'Z') {
-        int idx = tile - 'A';
-        g_switchExists[idx] = true;
-        g_switchRow[idx] = row;
-        g_switchCol[idx] = col;
-    }
-}
-
 // ----------------------------------------------------------------------------
 // LOAD LEVEL FILE
 // ----------------------------------------------------------------------------
@@ -75,20 +44,27 @@ bool loadLevelFile() {
             }
         }
         if (colonIndex == (int)line.size() - 1) {
-            section = trim(line.substr(0, line.size() - 1));
+            string simpleTrimmed = "";
+            int start = 0;
+            int end = colonIndex;
+            while (start < end && (line[start] == ' ' || line[start] == '\t' || line[start] == '\r')) start++;
+            while (end > start && (line[end - 1] == ' ' || line[end - 1] == '\t' || line[end - 1] == '\r')) end--;
+            for (i = start; i < end; ++i) simpleTrimmed.push_back(line[i]);
+            section = simpleTrimmed;
             continue;
         }
 
         if (section == "NAME") {
-            string nameText = trim(line);
-            for (i = 0; i < (int)sizeof(g_levelName) - 1 && i < (int)nameText.size(); ++i) {
-                g_levelName[i] = nameText[i];
+            int start = 0;
+            int end = (int)line.size();
+            while (start < end && (line[start] == ' ' || line[start] == '\t' || line[start] == '\r')) start++;
+            while (end > start && (line[end - 1] == ' ' || line[end - 1] == '\t' || line[end - 1] == '\r')) end--;
+            int copyCount = 0;
+            for (i = start; i < end && copyCount < (int)sizeof(g_levelName) - 1; ++i) {
+                g_levelName[copyCount] = line[i];
+                copyCount++;
             }
-            if (i < (int)sizeof(g_levelName)) {
-                g_levelName[i] = '\0';
-            } else {
-                g_levelName[sizeof(g_levelName) - 1] = '\0';
-            }
+            g_levelName[copyCount] = '\0';
         } else if (section == "ROWS") {
             g_rows = atoi(line.c_str());
         } else if (section == "COLS") {
@@ -97,7 +73,12 @@ bool loadLevelFile() {
             g_seed = atoi(line.c_str());
             srand(g_seed);
         } else if (section == "WEATHER") {
-            string weatherText = trim(line);
+            int start = 0;
+            int end = (int)line.size();
+            while (start < end && (line[start] == ' ' || line[start] == '\t' || line[start] == '\r')) start++;
+            while (end > start && (line[end - 1] == ' ' || line[end - 1] == '\t' || line[end - 1] == '\r')) end--;
+            string weatherText = "";
+            for (i = start; i < end; ++i) weatherText.push_back(line[i]);
             if (weatherText == "RAIN") g_weather = WEATHER_RAIN;
             else if (weatherText == "FOG") g_weather = WEATHER_FOG;
             else g_weather = WEATHER_NORMAL;
@@ -110,7 +91,20 @@ bool loadLevelFile() {
                         tile = line[c];
                     }
                     g_grid[mapRow][c] = tile;
-                    recordSpecialTile(mapRow, c, tile);
+                    if (tile == 'S' && g_spawnCount < MAX_SPAWNS) {
+                        g_spawnRows[g_spawnCount] = mapRow;
+                        g_spawnCols[g_spawnCount] = c;
+                        g_spawnCount++;
+                    } else if (tile == 'D' && g_destCount < MAX_DESTS) {
+                        g_destRows[g_destCount] = mapRow;
+                        g_destCols[g_destCount] = c;
+                        g_destCount++;
+                    } else if (tile >= 'A' && tile <= 'Z') {
+                        int idx = tile - 'A';
+                        g_switchExists[idx] = true;
+                        g_switchRow[idx] = mapRow;
+                        g_switchCol[idx] = c;
+                    }
                 }
                 mapRow++;
             }
